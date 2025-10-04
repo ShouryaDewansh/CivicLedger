@@ -1,0 +1,386 @@
+openapi: 3.0.3
+info:
+  title: CivicLedger API
+  description: |
+    Privacy-preserving, verifiable petition/voting system using Merkle trees and Ed25519 signatures.
+    
+    ## Overview
+    CivicLedger provides a lightweight system for verifiable voting where:
+    - Clients hash their votes (commitments) before submission
+    - Server builds Merkle trees from vote commitments
+    - Each vote receives an inclusion receipt (proof + signature)
+    - Clients can verify their vote was included without revealing content
+    
+    ## Security Note
+    This is a hackathon prototype and NOT election-grade. It lacks:
+    - Authentication/authorization
+    - Rate limiting
+    - PII protection mechanisms
+    - Persistent key storage
+  version: 1.0.0
+  contact:
+    name: CivicLedger Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:4000/api
+    description: Local development server
+  - url: http://localhost:4000/api
+    description: Docker container
+
+tags:
+  - name: system
+    description: System health and configuration
+  - name: polls
+    description: Poll management
+  - name: votes
+    description: Vote casting and receipts
+  - name: snapshots
+    description: Snapshot creation and retrieval
+
+paths:
+  /health:
+    get:
+      tags:
+        - system
+      summary: Health check
+      description: Returns server health status and uptime
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: integer
+                    description: Server uptime in seconds
+                    example: 3600
+
+  /server-public-key:
+    get:
+      tags:
+        - system
+      summary: Get server public key
+      description: Returns the Ed25519 public key used for signing snapshots
+      responses:
+        '200':
+          description: Server public key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    description: Base64-encoded Ed25519 public key
+                    example: "Ay2zKH5jF3w9kYR7xMnPqLtS..."
+
+  /polls:
+    post:
+      tags:
+        - polls
+      summary: Create a new poll
+      description: Creates a new poll with a unique ID and options
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+                - title
+                - options
+              properties:
+                id:
+                  type: string
+                  description: Unique poll identifier (UUID recommended)
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                title:
+                  type: string
+                  description: Poll title
+                  example: "Favorite Programming Language"
+                options:
+                  type: array
+                  description: Poll options (minimum 2)
+                  minItems: 2
+                  items:
+                    type: string
+                  example: ["JavaScript", "Python", "Rust", "Go"]
+      responses:
+        '201':
+          description: Poll created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Poll'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Poll ID already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/{id}:
+    get:
+      tags:
+        - polls
+      summary: Get poll details
+      description: Retrieves poll metadata and vote count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Poll ID
+      responses:
+        '200':
+          description: Poll details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Poll'
+                  - type: object
+                    properties:
+                      count:
+                        type: integer
+                        description: Number of votes cast
+                        example: 42
+        '404':
+          description: Poll not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /{pollId}/vote:
+    post:
+      tags:
+        - votes
+      summary: Cast a vote
+      description: |
+        Submits a vote commitment (pre-hashed by client) and returns an inclusion receipt.
+        The receipt contains a Merkle proof and signature that can be verified independently.
+      parameters:
+        - name: pollId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Poll ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - leaf
+              properties:
+                leaf:
+                  type: string
+                  description: SHA-256 hash of vote commitment (64 hex characters)
+                  pattern: '^[0-9a-fA-F]{64}$'
+                  example: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+      responses:
+        '200':
+          description: Vote cast successfully with receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receipt:
+                    $ref: '#/components/schemas/VoteReceipt'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Poll not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/{id}/snapshot:
+    post:
+      tags:
+        - snapshots
+      summary: Create a snapshot
+      description: |
+        Creates a signed snapshot of all votes in a poll. Optionally pins to IPFS if configured.
+        This is an admin action with no authentication in this hackathon version.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Poll ID
+      responses:
+        '200':
+          description: Snapshot created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '400':
+          description: Invalid input or no votes cast
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Poll not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /polls/{id}/snapshots:
+    get:
+      tags:
+        - snapshots
+      summary: List snapshots
+      description: Retrieves all snapshots for a poll
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Poll ID
+      responses:
+        '200':
+          description: List of snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Snapshot'
+                    - type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Snapshot database ID
+                          example: 1
+                        created_at:
+                          type: integer
+                          description: Creation timestamp (milliseconds)
+                          example: 1733333333333
+        '404':
+          description: Poll not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Poll:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        title:
+          type: string
+          example: "Favorite Programming Language"
+        options:
+          type: array
+          items:
+            type: string
+          example: ["JavaScript", "Python", "Rust", "Go"]
+
+    VoteReceipt:
+      type: object
+      properties:
+        pollId:
+          type: string
+          description: Poll ID
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        leaf:
+          type: string
+          description: Vote commitment hash (hex)
+          example: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+        index:
+          type: integer
+          description: Leaf index in Merkle tree
+          example: 0
+        proof:
+          type: array
+          description: Merkle proof (array of hex hashes)
+          items:
+            type: string
+          example: ["b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"]
+        root:
+          type: string
+          description: Merkle root hash (hex)
+          example: "8f1e3bda0e4e1e0e6c0f1f8f8e9e0e1e2e3e4e5e6e7e8e9eaebeced0e1e2e3"
+        timestamp:
+          type: integer
+          description: Timestamp (milliseconds)
+          example: 1733333333333
+        nLeaves:
+          type: integer
+          description: Total number of leaves in tree
+          example: 1
+        signature:
+          type: string
+          description: Ed25519 signature (base64)
+          example: "Ay2zKH5jF3w9kYR7xMnPqLtS..."
+
+    Snapshot:
+      type: object
+      properties:
+        pollId:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        root:
+          type: string
+          description: Merkle root hash (hex)
+          example: "8f1e3bda0e4e1e0e6c0f1f8f8e9e0e1e2e3e4e5e6e7e8e9eaebeced0e1e2e3"
+        nLeaves:
+          type: integer
+          description: Number of votes in snapshot
+          example: 42
+        timestamp:
+          type: integer
+          description: Timestamp (milliseconds)
+          example: 1733333333333
+        cid:
+          type: string
+          nullable: true
+          description: IPFS CID (null if IPFS not configured)
+          example: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+        signature:
+          type: string
+          description: Ed25519 signature (base64)
+          example: "Ay2zKH5jF3w9kYR7xMnPqLtS..."
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid input"
+

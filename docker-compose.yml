@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: civicledger-api
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DB_PATH=/app/data/civicledger.db
+      # Uncomment to enable IPFS
+      # - IPFS_URL=https://ipfs.infura.io:5001/api/v0
+    volumes:
+      - civicledger-data:/app/data
+    restart: unless-stopped
+    networks:
+      - civicledger-network
+
+volumes:
+  civicledger-data:
+    driver: local
+
+networks:
+  civicledger-network:
+    driver: bridge
+
