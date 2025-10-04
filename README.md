@@ -2,22 +2,62 @@
 
 Privacy-preserving, verifiable voting system using Merkle trees and Ed25519 signatures.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+
+## 🎯 Live Demo
+
+- **Frontend**: Coming soon (Deploy to Vercel)
+- **Backend API**: Coming soon (Deploy to Railway)
+
 ## 🚀 Quick Start
 
-### Backend Setup
+### Option 1: Quick Start Script
 ```bash
+# Clone the repository
+git clone https://github.com/ShouryaDewansh/CivicLedger.git
 cd CivicLedger
-npm install
-npm run dev
-# Server runs on http://localhost:4000
+
+# Start both servers
+./start-fullstack.sh
 ```
 
-### Frontend Setup
+### Option 2: Manual Setup
+
+**Backend:**
 ```bash
-cd ledger-witness-hub
 npm install
 npm run dev
-# App runs on http://localhost:8080
+# Server: http://localhost:4000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+# App: http://localhost:8080
+```
+
+## 📁 Project Structure
+
+```
+CivicLedger/
+├── src/                    # Backend source code
+│   ├── server.js          # Express API
+│   ├── routes/            # API routes
+│   ├── crypto/            # Merkle trees + signatures
+│   └── services/          # IPFS support
+├── frontend/              # React frontend
+│   ├── src/
+│   │   ├── pages/         # React pages
+│   │   ├── components/    # UI components
+│   │   └── utils/         # Crypto + API utils
+│   └── package.json
+├── package.json           # Backend dependencies
+├── Dockerfile             # Backend Docker image
+├── docker-compose.yml     # Full stack deployment
+└── README.md
 ```
 
 ## 📊 Features
@@ -79,7 +119,7 @@ SQLite Database
 ## 🐳 Docker Deployment
 
 ```bash
-# Build and run
+# Build and run full stack
 docker compose up -d
 
 # Stop
@@ -88,7 +128,7 @@ docker compose down
 
 ## 📝 Environment Variables
 
-Create `.env` file:
+**Backend `.env`:**
 ```bash
 PORT=4000
 DB_PATH=./civicledger.db
@@ -96,12 +136,27 @@ NODE_ENV=production
 # IPFS_URL=https://ipfs.infura.io:5001/api/v0  # Optional
 ```
 
-## 🧪 Testing
-
-```bash
-npm test
-# 46 tests passing
+**Frontend:**
+Update `frontend/src/utils/api.ts`:
+```typescript
+const API_BASE_URL = process.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 ```
+
+## ☁️ Cloud Deployment
+
+### Backend (Railway.app)
+1. Connect GitHub repository
+2. Set root directory to `/`
+3. Add environment variables
+4. Deploy!
+
+### Frontend (Vercel)
+1. Connect GitHub repository
+2. Set root directory to `/frontend`
+3. Build command: `npm run build`
+4. Output directory: `dist`
+5. Add env: `VITE_API_BASE_URL=https://your-backend-url.com/api`
+6. Deploy!
 
 ## ⚠️ Security Disclaimer
 
@@ -125,9 +180,11 @@ npm test
 
 ## 📚 Documentation
 
+- **Deployment Guide**: `DEPLOYMENT.md`
+- **Project Structure**: `PROJECT_STRUCTURE.md`
 - **OpenAPI Spec**: `openapi.yaml`
 - **Postman Collection**: `postman_collection.json`
-- **Archived Docs**: `_archive/` folder
+- **Detailed Docs**: `_archive/` folder
 
 ## 🎯 Verification Example
 
@@ -166,13 +223,19 @@ function verifyReceipt(receipt) {
 }
 ```
 
-## 📞 Support
+## 🤝 Contributing
 
-For issues or questions, check the archived documentation in `_archive/` folder.
+Contributions welcome! Please read `_archive/CONTRIBUTING.md` for guidelines.
 
 ## 📄 License
 
 MIT License - See LICENSE file
+
+## 🔗 Links
+
+- **GitHub**: [https://github.com/ShouryaDewansh/CivicLedger](https://github.com/ShouryaDewansh/CivicLedger)
+- **Demo**: Coming soon
+- **Documentation**: See `_archive/` folder
 
 ---
 
